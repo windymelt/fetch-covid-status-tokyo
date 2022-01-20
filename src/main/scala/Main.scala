@@ -1,16 +1,16 @@
-import org.jsoup.nodes.DocumentType
-import net.ruippeixotog.scalascraper.browser.JsoupBrowser
-import net.ruippeixotog.scalascraper.browser.Browser
-import java.net.URL
-import java.net.URI
 import io.lemonlabs.uri.Url
-import scala.sys.process
+import net.ruippeixotog.scalascraper.browser.JsoupBrowser
+import org.jsoup.nodes.DocumentType
+
+import scala.sys.process.ProcessBuilder
 
 object Main extends App {
   val browser = JsoupBrowser()
   val tokyolgjp =
     "https://www.fukushihoken.metro.tokyo.lg.jp/hodo/saishin/hassei.html"
+
   val tokyolgjpUrl = Url.parse(tokyolgjp)
+
   def toCurrentStatus(
       doc: browser.DocumentType
   ) = {
@@ -22,13 +22,14 @@ object Main extends App {
 
     val latestLink = doc >?> element("a.innerLink") >> attr("href")
 
-    latestLink.flatMap { li =>
+    latestLink.map { li =>
       val url =
         tokyolgjpUrl.withPathParts(li)
 
-      Some(browser.get(url.toString()))
+      browser.get(url.toString())
     }
   }
+
   def siblingPath(base: Url, vertex: Url): Url = {
     import io.lemonlabs.uri.UrlPath
 
@@ -53,13 +54,13 @@ object Main extends App {
     docPath.map(_.toJavaURI)
   }
 
-  def fetchPdf(url: Url): process.ProcessBuilder = {
+  def fetchPdf(url: Url): ProcessBuilder = {
     import scala.sys.process.Process
 
     Process(List("curl", url.toString()))
   }
 
-  def pdf2txt(proc: process.ProcessBuilder): process.ProcessBuilder = {
+  def pdf2txt(proc: ProcessBuilder): ProcessBuilder = {
     import scala.sys.process.Process
     Process(List("pdftotext", "-", "-")).#<(proc)
   }
@@ -76,7 +77,6 @@ object Main extends App {
     case '９' => 9
     case '０' => 0
   }
-  import net.ruippeixotog.scalascraper.browser.JsoupBrowser
 
   val doc = browser.get(tokyolgjpUrl.toString())
 
@@ -102,4 +102,5 @@ object Main extends App {
     case Some(value) => println(value); sys.exit(0)
     case None        => sys.exit(1)
   }
+
 }
