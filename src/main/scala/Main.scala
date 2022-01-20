@@ -83,13 +83,23 @@ object Main extends App {
   val current = toCurrentStatus(doc)
   val pdfLink = current.flatMap(getPdf).map(url => Url.parse(url.toString()))
 
-  println(
-    pdfLink
-      .map(fetchPdf)
-      .map(pdf2txt)
-      .map(_.!!)
-      .flatMap(_.split("\n").toSeq.filter(_.contains("本日判明分：")).headOption)
-      .map(_.substring(6).reverse.substring(1).filterNot(_ == '，'))
-      .flatMap(_.map(zen2num).mkString.toIntOption)
-  )
+  val num = for {
+    pdfLink1 <- pdfLink
+    pdfProc <- Some(pdf2txt(fetchPdf(pdfLink1)).!!)
+    notSanitizedCount <- pdfProc
+      .split("\n")
+      .toSeq
+      .filter(_.contains("本日判明分："))
+      .headOption
+    sanitizedCount <-
+      Some(
+        notSanitizedCount.substring(6).reverse.substring(1).filterNot(_ == '，')
+      )
+    num <- sanitizedCount.map(zen2num).mkString.toIntOption
+  } yield num
+
+  num match {
+    case Some(value) => println(value); sys.exit(0)
+    case None        => sys.exit(1)
+  }
 }
