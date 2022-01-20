@@ -1,0 +1,5 @@
+.bloop
+.metals
+target/
+/project/project
+/src/main/resources/application.conf
