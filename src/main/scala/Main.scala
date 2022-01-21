@@ -3,6 +3,8 @@ import net.ruippeixotog.scalascraper.browser.JsoupBrowser
 import org.jsoup.nodes.DocumentType
 
 import scala.sys.process.ProcessBuilder
+import io.lemonlabs.uri.AbsoluteUrl
+import io.lemonlabs.uri.UrlWithAuthority
 
 object Main extends App {
   val browser = JsoupBrowser()
@@ -20,12 +22,17 @@ object Main extends App {
 
     import net.ruippeixotog.scalascraper.model._
 
-    val latestLink = doc >?> element("a.innerLink") >> attr("href")
+    println("doc ok")
+    val div = doc >> element("div#main-nosub")
+    val latestLink = div >?> element("a") >> attr("href")
 
     latestLink.map { li =>
-      val url =
-        tokyolgjpUrl.withPathParts(li)
-
+      val vertex = Url.parse(li)
+      val url = vertex match {
+        case UrlWithAuthority(_, _, _, _) => vertex
+        case otherwise =>
+          tokyolgjpUrl.withPathParts(vertex.path.parts)
+      }
       browser.get(url.toString())
     }
   }
@@ -45,10 +52,14 @@ object Main extends App {
 
     import net.ruippeixotog.scalascraper.model._
 
+    println("gettinf pdf link")
+
     val link =
       (doc >?> elementList("a.resourceLink")).headOption.flatMap(_.headOption)
+    val alternateLink =
+      (doc >?> elementList("a.icon_pdf")).headOption.flatMap(_.headOption)
     val docPath =
-      link.map(li =>
+      (link orElse alternateLink).map(li =>
         siblingPath(Url.parse(doc.location), Url.parse(li.attr("href")))
       )
     docPath.map(_.toJavaURI)
@@ -57,6 +68,7 @@ object Main extends App {
   def fetchPdf(url: Url): ProcessBuilder = {
     import scala.sys.process.Process
 
+    println(s"pdf: ${url.toString()}")
     Process(List("curl", url.toString()))
   }
 
