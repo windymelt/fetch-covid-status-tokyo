@@ -65,7 +65,7 @@ object Main extends App {
   def fetchPdf(url: Url): ProcessBuilder = {
     import scala.sys.process.Process
 
-    Process(List("curl", url.toString()))
+    Process(List("curl", "-sSl", url.toString()))
   }
 
   def pdf2txt(proc: ProcessBuilder): ProcessBuilder = {
