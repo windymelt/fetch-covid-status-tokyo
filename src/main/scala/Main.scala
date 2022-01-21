@@ -22,7 +22,6 @@ object Main extends App {
 
     import net.ruippeixotog.scalascraper.model._
 
-    println("doc ok")
     val div = doc >> element("div#main-nosub")
     val latestLink = div >?> element("a") >> attr("href")
 
@@ -52,8 +51,6 @@ object Main extends App {
 
     import net.ruippeixotog.scalascraper.model._
 
-    println("gettinf pdf link")
-
     val link =
       (doc >?> elementList("a.resourceLink")).headOption.flatMap(_.headOption)
     val alternateLink =
@@ -68,7 +65,6 @@ object Main extends App {
   def fetchPdf(url: Url): ProcessBuilder = {
     import scala.sys.process.Process
 
-    println(s"pdf: ${url.toString()}")
     Process(List("curl", url.toString()))
   }
 
