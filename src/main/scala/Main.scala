@@ -28,23 +28,26 @@ object Main extends App {
     latestLink.map { li =>
       val vertex = Url.parse(li)
       val url = vertex match {
-        case UrlWithAuthority(_, _, _, _) => vertex
-        case otherwise =>
+        case UrlWithAuthority(_, _, _, _) => vertex // 絶対リンクの場合
+        case otherwise => // 相対リンクなので調整する
           tokyolgjpUrl.withPathParts(vertex.path.parts)
       }
       browser.get(url.toString())
     }
   }
 
-  def siblingPath(base: Url, vertex: Url): Url = {
+  // ./foo.pdf のようなURLを絶対URLとして解決する
+  def siblingPath(base: Url, relativeUrl: Url): Url = {
     import io.lemonlabs.uri.UrlPath
 
     val basePathWithoutFile =
       base.path.parts.filterNot(_.isEmpty()).reverse.tail.reverse
-    base.withPath(UrlPath(basePathWithoutFile)).addPathParts(vertex.path.parts)
+    base
+      .withPath(UrlPath(basePathWithoutFile))
+      .addPathParts(relativeUrl.path.parts)
   }
 
-  def getPdf(doc: browser.DocumentType) = {
+  def getPdfLink(doc: browser.DocumentType) = {
     import net.ruippeixotog.scalascraper.dsl.DSL._
     import net.ruippeixotog.scalascraper.dsl.DSL.Extract._
     import net.ruippeixotog.scalascraper.dsl.DSL.Parse._
@@ -86,24 +89,28 @@ object Main extends App {
     case '０' => 0
   }
 
+  def extractCount(s: String): Option[String] = {
+    val pattern = """本日判明分：([１２３４５６７８９０，]+).*""".r
+    s match {
+      case pattern(count) => Some(count.filterNot(_ == '，'))
+      case _              => None
+    }
+  }
+
   val doc = browser.get(tokyolgjpUrl.toString())
 
   val current = toCurrentStatus(doc)
-  val pdfLink = current.flatMap(getPdf).map(url => Url.parse(url.toString()))
+  val maybePdfLink =
+    current.flatMap(getPdfLink).map(url => Url.parse(url.toString()))
 
   val num = for {
-    pdfLink1 <- pdfLink
-    pdfProc <- Some(pdf2txt(fetchPdf(pdfLink1)).!!)
-    notSanitizedCount <- pdfProc
+    pdfLink <- maybePdfLink
+    pdfTxt <- Some((fetchPdf _).andThen(pdf2txt)(pdfLink).!!)
+    zenkakuCount <- pdfTxt
       .split("\n")
-      .toSeq
-      .filter(_.contains("本日判明分："))
+      .flatMap(extractCount)
       .headOption
-    sanitizedCount <-
-      Some(
-        notSanitizedCount.substring(6).reverse.substring(1).filterNot(_ == '，')
-      )
-    num <- sanitizedCount.map(zen2num).mkString.toIntOption
+    num <- zenkakuCount.map(zen2num).mkString.toIntOption
   } yield num
 
   num match {
